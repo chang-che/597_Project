@@ -53,3 +53,17 @@ tran.m <- matrix(as.double(rep(1/N, N*N)), ncol = N, byrow = T)
 Baum.Welch(obs.vec, tran.m, pi.mar, 'norm', list(mean = mean.vec, sd = sd.vec))
 ```
 
+```{r}
+plot(BM$likelihood)
+
+```
+
+```{r}
+BM$Pi
+BM$pm
+Viterbihmm(obs.vec, BM$Pi, BM$delta, 'norm', BM$pm)
+```
+
+```{r}
+Viterbihmm(obs.vec, tran.m, pi.mar, 'norm', list(mean = mean.vec, sd = sd.vec))
+```
