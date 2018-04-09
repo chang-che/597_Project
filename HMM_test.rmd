@@ -1,0 +1,403 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+```{r}
+####################simulation of Guassian HMM
+##
+
+set.seed(1234)
+n_states = 4
+n_time = 200
+x1 = list()
+for (i in 1:n_states) {
+  x <- runif(n_states)
+  x1[[i]] <- x/sum(x)
+}
+
+#tran.m.true <- matrix(unlist(x1), ncol = n_states, byrow = T)
+#apply(tran.m, 1, sum)
+tran.m.true <- matrix(c(1/2,1/2,0,0,
+                        0,1/2,1/2,0,
+                        0,0,1/2,1/2,
+                        1/2,0,0,1/2), ncol = n_states, byrow = T)
+#
+listofnormals = list()
+listofnormals[[1]] = list(1, 'mean' = 2, 'sd' = 1 )
+listofnormals[[2]] = list(1, 'mean' = 4, 'sd' = 3 )
+listofnormals[[3]] = list(1, 'mean' = 8, 'sd' = 3 )
+listofnormals[[4]] = list(1, 'mean' = 14, 'sd' = 3 )
+ini.vec = c(1, 0, 0, 0)
+obs.vec = rep(NA, n_time)
+obs.states = rep(NA, n_time)
+
+for (i in 1:n_time) {
+  x <- sample(1:n_states, 1, prob = ini.vec)
+  obs.states[i] <- x
+  obs.vec[i] = do.call(rnorm, listofnormals[[x]])
+  ini.vec <- ini.vec %*% tran.m.true
+}
+
+obs.states
+tran.m.true
+```
+#1st FB test
+```{r}
+N <- 4
+Ti <- length(obs.vec)
+maxiter <- 500
+epsilon <- 1e-6
+pi.mar <- as.double(rep(1/N,N))
+oldLL <- -Inf
+log.lik.iter <- c(-Inf)
+mean.vec <- as.double(c(2,3,9,10))
+sd.vec <- as.double(c(1.5,2,3,4))
+tran.m <- matrix(as.double(rep(1/N, N*N)), ncol = N, byrow = T)
+density.m <- matrix(rep(as.double(0), Ti*N), nrow = Ti, ncol = N)
+for (i in 1:Ti){
+ density.m[i,] <- mapply(
+   dnorm, 'x' = obs.vec[i], 'mean' = mean.vec, 'sd' = sd.vec, SIMPLIFY = T)
+}
+
+```
+
+My BaumWelch test
+First iteration test
+
+```{r}
+iter = 1
+N <- 4
+Ti <- length(obs.vec)
+maxiter <- 500
+epsilon <- 1e-6
+pi.mar <- as.double(rep(1/N,N))
+oldLL <- -Inf
+log.lik.iter <- c(-Inf)
+mean.vec <- as.double(c(2,3,9,10))
+sd.vec <- as.double(c(1.5,2,3,4))
+tran.m <- matrix(as.double(rep(1/N, N*N)), ncol = N, byrow = T)
+
+FB <- ForwardBack(obs.vec, pi.mar, tran.m, mean.vec, sd.vec)
+  LL <- FB$Loglikelihood
+  log.lik.iter <- c(log.lik.iter, LL)
+  diff <- LL - oldLL
+  cat('iter=', iter, '\n')
+  cat('LL=', round(LL, 10), '\n')
+  cat('diff=', diff, '\n')
+  if(abs(diff)<epsilon){
+    stop('Algorithm converges!')
+  }
+  gamma.log <- FB$alphalog+FB$betalog-LL
+  gamma.m <- exp(gamma.log)
+  AH <- FB$alphahat
+  BH <- FB$betahat
+  DM <- FB$density_m
+  mean.vec <- apply(gamma.m, 2, function(x) sum(x*obs.vec)/sum(x))
+  sd.vec <- sqrt(apply((matrix(obs.vec, nrow = Ti, ncol = N) - matrix(mean.vec,nrow = Ti, ncol = N, byrow = TRUE))^2 * gamma.m, MARGIN = 2,FUN = sum)/apply(gamma.m, MARGIN = 2, FUN = sum))
+  pi.mar <- gamma.m[1,]
+  tran.m <- (t(AH[1:Ti-1,])%*%(DM[2:Ti,]*BH[2:Ti,]))*tran.m #maybe a parenthesis is redundant.
+  #tran.m <- t(scale(t(tran.m),center = F, scale = colSums(t(tran.m))))
+  tran.m <- t(apply(tran.m, 1, function(x) x/sum(x)))
+  oldLL <- LL
+
+```
+My First results:
+```{r}
+head(FB$alphalog)
+head(FB$betalog)
+FB$Loglikelihood
+head(FB$alphalog+FB$betalog-FB$Loglikelihood)
+```
+2nd test of FB
+```{r}
+mean.vec
+sd.vec
+pi.mar
+tran.m
+```
+# test of FB
+```{r}
+FB2 <- ForwardBack(obs.vec, pi.mar, tran.m, mean.vec, sd.vec)
+head(FB2$alphalog)
+head(FB2$betalog)
+FB2$Loglikelihood
+head(FB2$density_m)
+FB2$ct
+
+```
+
+
+My 2nd  test
+```{r}
+iter = 2
+
+
+density.m <- matrix(rep(as.double(0), Ti*N), nrow = Ti, ncol = N)
+for (i in 1:Ti){
+ density.m[i,] <- mapply(
+   dnorm, 'x' = obs.vec[i], 'mean' = mean.vec, 'sd' = sd.vec, SIMPLIFY = T)
+ }
+FB2 <- ForwardBack(obs.vec, pi.mar, tran.m, mean.vec, sd.vec)
+LL <- FB2$Loglikelihood
+log.lik.iter <- c(log.lik.iter, LL)
+diff <- LL - oldLL
+cat('iter=', iter, '\n')
+cat('LL=', round(LL, 10), '\n')
+cat('diff=', diff, '\n')
+if(abs(diff)<epsilon){
+  stop('Algorithm converges!')
+}
+gamma.log <- FB2$alphalog+FB2$betalog-LL
+gamma.m <- exp(gamma.log)
+alpha.hat <- FB2$alpha_hat
+beta.hat <- FB2$beta_hat
+mean.vec <- apply(gamma.m, 2, function(x) sum(x*obs.vec)/sum(x))
+sd.vec <- sqrt(apply((matrix(obs.vec, nrow = Ti, ncol = N) - matrix(mean.vec,nrow = Ti, ncol = N, byrow = TRUE))^2 * gamma.m, MARGIN = 2,FUN = sum)/apply(gamma.m, MARGIN = 2, FUN = sum))
+pi.mar <- gamma.m[1,]
+tran.m <- (t(alpha.hat[1:Ti-1,])%*%(density.m[2:Ti,]*beta.hat[2:Ti,]))*tran.m #maybe a parenthesis is redundant.
+tran.m <- t(scale(t(tran.m),center = F, scale = colSums(t(tran.m))))
+oldLL <- LL
+```
+My 2nd results:
+```{r}
+#sd.vec
+#mean.vec
+#pi.mar
+#tran.m
+#head(gamma.m)
+#gamma.m[1,]
+head(FB2$alphalog)
+head(FB2$betalog)
+FB2$Loglikelihood
+head(gamma.m)
+pi.mar
+```
+
+
+
+#Full test
+```{r}
+maxiter <- 500
+N <- 4
+Ti <- length(obs.vec)
+epsilon <- 1e-6
+pi.mar <- rep(1/N,N)
+oldLL <- -Inf
+log.lik.iter <- c(-Inf)
+mean.vec <- c(2,3,9,10)
+sd.vec <- c(1.5,2,3,4)
+tran.m <- matrix(as.double(rep(1/N, N*N)), ncol = N, byrow = T)
+for (iter in 1:maxiter){
+  FB <- ForwardBack(obs.vec, pi.mar, tran.m, mean.vec, sd.vec)
+  LL <- FB$Loglikelihood
+  log.lik.iter <- c(log.lik.iter, LL)
+  diff <- LL - oldLL
+  cat('iter=', iter, '\n')
+  cat('LL=', round(LL, 10), '\n')
+  cat('diff=', diff, '\n')
+  if(abs(diff)<epsilon){
+    stop('Algorithm converges!')
+  }
+  gamma.log <- FB$alphalog+FB$betalog-LL
+  gamma.m <- exp(gamma.log)
+  AH <- FB$alphahat
+  BH <- FB$betahat
+  DM <- FB$density_m
+  mean.vec <- apply(gamma.m, 2, function(x) sum(x*obs.vec)/sum(x))
+  sd.vec <- sqrt(apply((matrix(obs.vec, nrow = Ti, ncol = N) - matrix(mean.vec,nrow = Ti, ncol = N, byrow = TRUE))^2 * gamma.m, MARGIN = 2,FUN = sum)/apply(gamma.m, MARGIN = 2, FUN = sum))
+  pi.mar <- gamma.m[1,]
+  tran.m <- (t(AH[1:Ti-1,])%*%(DM[2:Ti,]*BH[2:Ti,]))*tran.m #maybe a parenthesis is redundant.
+  tran.m <- t(scale(t(tran.m),center = F, scale = colSums(t(tran.m))))
+  oldLL <- LL
+}
+
+```
+I think the problem happends at 24th iteration
+```{r}
+maxiter <- 24
+N <- 4
+Ti <- length(obs.vec)
+epsilon <- 1e-6
+pi.mar <- rep(1/N,N)
+oldLL <- -Inf
+log.lik.iter <- c(-Inf)
+mean.vec <- c(2,3,9,10)
+sd.vec <- c(1.5,2,3,4)
+tran.m <- matrix(as.double(rep(1/N, N*N)), ncol = N, byrow = T)
+for (iter in 1:maxiter){
+  FB <- ForwardBack(obs.vec, pi.mar, tran.m, mean.vec, sd.vec)
+  LL <- FB$Loglikelihood
+  log.lik.iter <- c(log.lik.iter, LL)
+  diff <- LL - oldLL
+  cat('iter=', iter, '\n')
+  cat('LL=', round(LL, 10), '\n')
+  cat('diff=', diff, '\n')
+  if(abs(diff)<epsilon){
+    stop('Algorithm converges!')
+  }
+  gamma.log <- FB$alphalog+FB$betalog-LL
+  gamma.m <- exp(gamma.log)
+  AH <- FB$alphahat
+  BH <- FB$betahat
+  DM <- FB$density_m
+  mean.vec <- apply(gamma.m, 2, function(x) sum(x*obs.vec)/sum(x))
+  sd.vec <- sqrt(apply((matrix(obs.vec, nrow = Ti, ncol = N) - matrix(mean.vec,nrow = Ti, ncol = N, byrow = TRUE))^2 * gamma.m, MARGIN = 2,FUN = sum)/apply(gamma.m, MARGIN = 2, FUN = sum))
+  pi.mar <- gamma.m[1,]
+  tran.m <- (t(AH[1:Ti-1,])%*%(DM[2:Ti,]*BH[2:Ti,]))*tran.m #maybe a parenthesis is redundant.
+  #tran.m <- t(scale(t(tran.m),center = F, scale = colSums(t(tran.m))))
+  tran.m <- t(apply(tran.m, 1, function(x) x/sum(x)))
+  oldLL <- LL
+}
+```
+#
+```{r}
+mean.vec
+sd.vec
+tran.m
+pi.mar
+```
+#First test with FB2
+
+```{r}
+iter = 1
+N <- 4
+Ti <- length(obs.vec)
+maxiter <- 500
+epsilon <- 1e-6
+pi.mar <- as.double(rep(1/N,N))
+oldLL <- -Inf
+log.lik.iter <- c(-Inf)
+mean.vec <- as.double(c(2,3,9,10))
+sd.vec <- as.double(c(1.5,2,3,4))
+tran.m <- matrix(as.double(rep(1/N, N*N)), ncol = N, byrow = T)
+
+FB_1 <- ForwardBack2(obs.vec, pi.mar, tran.m, mean.vec, sd.vec)
+
+```
+Its results
+```{r}
+head(FB_1$alphalog)
+head(FB_1$alpha_hat)
+head(FB_1$beta_hat)
+ct_seq = FB_1$ct
+
+```
+```{r}
+beta_log = matrix(rep(NA, Ti*N), ncol = N)
+
+for (i in Ti:1){
+  beta_log[i,] = FB_1$beta_hat[i]/prod(ct_seq[Ti+1-i:Ti])
+}
+beta_log <- log(beta_log)
+```
+
+```{r}
+head(beta_log)
+```
+I think I didn't notice the that beta's are identical across the states in every line.
+
+```{r}
+head(gamma.m)
+ct_seq = 1:Ti
+x = t(sapply(1:Ti, function(x) gamma.m[x,]/ct_seq[x]))
+dim(x)
+head(x)
+```
+Test with
+
+```{r}
+maxiter <- 500
+N <- 4
+Ti <- length(obs.vec)
+epsilon <- 1e-3
+pi.mar <- rep(1/N,N)
+oldLL <- -Inf
+log.lik.iter <- c(-Inf)
+mean.vec <- c(2,3,9,10)
+sd.vec <- c(1.5,2,3,4)
+tran.m <- matrix(as.double(rep(1/N, N*N)), ncol = N, byrow = T)
+FB <- ForwardBack2(obs.vec, pi.mar, tran.m, mean.vec, sd.vec)
+  LL <- FB$Loglikelihood
+  log.lik.iter <- c(log.lik.iter, LL)
+  diff <- LL - oldLL
+  cat('iter=', iter, '\n')
+  cat('LL=', round(LL, 10), '\n')
+  cat('diff=', diff, '\n')
+  if(abs(diff)<epsilon){
+    stop('Algorithm converges!')
+  }
+  gamma.log <- FB$alphalog+FB$betalog-LL
+  gamma.m <- exp(gamma.log)
+  AH <- FB$alphahat
+  BH <- FB$betahat
+  DM <- FB$density_m
+  ct_vec <-FB$ct
+  gamma.m <- AH*BH
+  gamma.m <- t(sapply(1:Ti, function(x) gamma.m[x,]/ct_vec[x]))
+  mean.vec <- apply(gamma.m, 2, function(x) sum(x*obs.vec)/sum(x))
+  sd.vec <- sqrt(apply((matrix(obs.vec, nrow = Ti, ncol = N) - matrix(mean.vec,nrow = Ti, ncol = N, byrow = TRUE))^2 * gamma.m, MARGIN = 2,FUN = sum)/apply(gamma.m, MARGIN = 2, FUN = sum))
+  pi.mar <- gamma.m[1,]
+  tran.m <- (t(AH[1:Ti-1,])%*%(DM[2:Ti,]*BH[2:Ti,]))*tran.m #maybe a parenthesis is redundant.
+  tran.m <- t(scale(t(tran.m),center = F, scale = colSums(t(tran.m))))
+  oldLL <- LL
+```
+```{r}
+#gamma revision
+maxiter <- 500
+N <- 4
+Ti <- length(obs.vec)
+epsilon <- 1e-3
+pi.mar <- rep(1/N,N)
+oldLL <- -Inf
+log.lik.iter <- c(-Inf)
+mean.vec <- c(2,3,9,10)
+sd.vec <- c(1.5,2,3,4)
+tran.m <- matrix(as.double(rep(1/N, N*N)), ncol = N, byrow = T)
+for (iter in 1:maxiter){
+  FB <- ForwardBack2(obs.vec, pi.mar, tran.m, mean.vec, sd.vec)
+  LL <- FB$Loglikelihood
+  log.lik.iter <- c(log.lik.iter, LL)
+  diff <- LL - oldLL
+  cat('iter=', iter, '\n')
+  cat('LL=', round(LL, 10), '\n')
+  cat('diff=', diff, '\n')
+  if(abs(diff)<epsilon){
+    stop('Algorithm converges!')
+  }
+  gamma.log <- FB$alphalog+FB$betalog-LL
+  gamma.m <- exp(gamma.log)
+  AH <- FB$alphahat
+  BH <- FB$betahat
+  DM <- FB$density_m
+  ct_vec <-FB$ct
+  gamma.m <- AH*BH
+  gamma.m <- t(sapply(1:Ti, function(x) gamma.m[x,]/ct_vec[x]))
+  mean.vec <- apply(gamma.m, 2, function(x) sum(x*obs.vec)/sum(x))
+  sd.vec <- sqrt(apply((matrix(obs.vec, nrow = Ti, ncol = N) - matrix(mean.vec,nrow = Ti, ncol = N, byrow = TRUE))^2 * gamma.m, MARGIN = 2,FUN = sum)/apply(gamma.m, MARGIN = 2, FUN = sum))
+  pi.mar <- gamma.m[1,]
+  tran.m <- (t(AH[1:Ti-1,])%*%(DM[2:Ti,]*BH[2:Ti,]))*tran.m #maybe a parenthesis is redundant.
+  tran.m <- t(scale(t(tran.m),center = F, scale = colSums(t(tran.m))))
+  oldLL <- LL
+}
+
+```
+
+```{r}
+plot(log.lik.iter)
+
+```
+

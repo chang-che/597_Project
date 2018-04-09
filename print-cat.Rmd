@@ -1,0 +1,10 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+The difference between print and cat functions.
+And a brief introduction of their usages.
+```{r}
+
+```
+

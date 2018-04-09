@@ -1,0 +1,55 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+library(HiddenMarkov)
+```
+
+#compare with the results in package
+```{r}
+N <- 4
+Ti <- length(obs.vec)
+maxiter <- 500
+epsilon <- 1e-6
+pi.mar <- rep(1/N,N)
+oldLL <- -Inf
+log.lik.iter <- c(-Inf)
+mean.vec <- c(2,3,9,10)
+sd.vec <- c(1.5,2,3,4)
+tran.m <- matrix(as.double(rep(1/N, N*N)), ncol = N, byrow = T)
+result1 = forwardback(obs.vec, tran.m, pi.mar, 'norm', list(mean = mean.vec, sd = sd.vec))
+head(result1$logalpha)
+head(result1$logbeta)
+head(result1$LL)
+```
+# 2nd test of forwardback
+```{r}
+mean.vec
+sd.vec
+pi.mar
+tran.m
+```
+
+#Its 2nd Results
+```{r}
+library(HiddenMarkov)
+esult2 = forwardback(obs.vec, tran.m, pi.mar, 'norm', list(mean = mean.vec, sd = sd.vec), fortran = F)
+head(result2$logalpha)
+head(result2$logbeta)
+head(result2$LL)
+result2$tra
+result2$tran - FB2$density_m
+```
+
+Full test for BaumWelch
+```{r}
+pi.mar <- rep(1/N,N)
+oldLL <- -Inf
+log.lik.iter <- c(-Inf)
+mean.vec <- c(2,3,9,10)
+sd.vec <- c(1.5,2,3,4)
+tran.m <- matrix(as.double(rep(1/N, N*N)), ncol = N, byrow = T)
+Baum.Welch(obs.vec, tran.m, pi.mar, 'norm', list(mean = mean.vec, sd = sd.vec))
+```
+
