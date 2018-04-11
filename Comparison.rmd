@@ -1,0 +1,118 @@
+---
+title: "Comparison between the BaumWelch_hmm(),Vit_hmm() and Baum.Welch(),Viterbihmm"
+output: html_notebook
+---
+The simulation of Guassian HMM
+You can set any number of states as you want and any transition matrix, mean and sd for normal distribution as well.
+```{r}
+set.seed(1234)
+n_states = 5
+n_time = 200
+x1 = list()
+for (i in 1:n_states) {
+  x <- runif(n_states)
+  x1[[i]] <- x/sum(x)
+}
+
+#tran.m.true <- matrix(unlist(x1), ncol = n_states, byrow = T)
+#apply(tran.m, 1, sum)
+tran.m.true <- matrix(c(1/2,1/2,0,0,0,
+                        0,1/2,1/2,0,0,
+                        0,0,1/2,1/2,0,
+                        0,0,0,1/2,1/2,
+                        0,0,0,0,1), ncol = n_states, byrow = T)
+#
+listofnormals = list()
+listofnormals[[1]] = list(1, 'mean' = 2, 'sd' = 1 )
+listofnormals[[2]] = list(1, 'mean' = 4, 'sd' = 3 )
+listofnormals[[3]] = list(1, 'mean' = 8, 'sd' = 3 )
+listofnormals[[4]] = list(1, 'mean' = 14, 'sd' = 3 )
+listofnormals[[5]] = list(1, 'mean' = 10, 'sd' = 2 )
+ini.vec = c(1, 0, 0, 0,0)
+obs.vec = rep(NA, n_time)
+obs.states = rep(NA, n_time)
+
+for (i in 1:n_time) {
+  x <- sample(1:n_states, 1, prob = ini.vec)
+  obs.states[i] <- x
+  obs.vec[i] = do.call(rnorm, listofnormals[[x]])
+  ini.vec <- ini.vec %*% tran.m.true
+}
+
+obs.states
+tran.m.true
+```
+Test for the BaumWelch_hmm()
+```{r}
+maxiter <- 2000
+N <- 4
+Ti <- length(obs.vec)
+epsilon <- 1e-5
+pi.mar <- rep(1/N,N)
+mean.vec <- rev(c(2,3,9,10))
+sd.vec <- rev(c(1.5,2,3,4))
+tran.m <- matrix(as.double(rep(1/N, N*N)), ncol = N, byrow = T)
+system.time(BM1 <- BaumWelch_hmm(obs.vec, pi.mar, tran.m, mean.vec, sd.vec, maxiter, epsilon))
+```
+
+```{r}
+plot(BM1$iter_LL)
+
+```
+
+
+Test for BM in the hiddemMarkov package and compare
+```{r}
+library(HiddenMarkov)
+pi.mar <- rep(1/N,N)
+mean.vec <- rev(c(2,3,9,10))
+sd.vec <- rev(c(1.5,2,3,4))
+tran.m <- matrix(as.double(rep(1/N, N*N)), ncol = N, byrow = T)
+system.time(BM2 <- Baum.Welch(obs.vec, tran.m, pi.mar, 'norm', list(mean = mean.vec, sd = sd.vec),maxiter = 2000))
+```
+  user  system elapsed 
+  3.480   0.875   4.429 
+   user  system elapsed 
+  1.560   0.924   2.582 
+The time of our BaumWelch_hmm() is longer than the Baum.Welch() from the HiddenMarkov package because  Baum.Welch() implements the fortran in the code which enable it faster in loops.
+
+
+Notice that the original Baum.Welch() has been revised to add a new variable to track the loglikelihood as the iteration goes on. 
+If you want to revise it on your own, I have listed the method below:
+trace('Baum.Welch', edit = T)
+
+```{r}
+plot(BM2$LL_iter)
+```
+
+```{r}
+BM1$tran_m
+BM2$Pi
+BM1$pi_mar
+BM2$delta
+BM1$mean
+BM1$sd
+BM2$pm
+
+```
+As we can see in the previous chunk, the outputs from our code and from the HiddenMarkov are identical, which is not surprising because the idea of forward backward EM algorithms are basically the same.
+
+```{r}
+
+system.time(VH1 <- Vit_hmm(obs.vec, BM1$pi_mar, BM1$tran_m, BM1$mean, BM1$sd))
+```
+
+
+```{r}
+VH1
+```
+
+```{r}
+system.time(VH2 <- Viterbihmm(obs.vec, BM1$tran_m, BM1$pi_mar, 'norm', list(mean = BM1$mean, BM1$sd)))
+```
+
+```{r}
+VH2
+```
+
+Not surprisingly, the estimated paths are identical.
