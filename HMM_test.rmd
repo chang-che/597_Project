@@ -357,6 +357,7 @@ FB <- ForwardBack2(obs.vec, pi.mar, tran.m, mean.vec, sd.vec)
   tran.m <- t(scale(t(tran.m),center = F, scale = colSums(t(tran.m))))
   oldLL <- LL
 ```
+
 ```{r}
 #gamma revision
 maxiter <- 500
@@ -392,7 +393,8 @@ for (iter in 1:maxiter){
   sd.vec <- sqrt(apply((matrix(obs.vec, nrow = Ti, ncol = N) - matrix(mean.vec,nrow = Ti, ncol = N, byrow = TRUE))^2 * gamma.m, MARGIN = 2,FUN = sum)/apply(gamma.m, MARGIN = 2, FUN = sum))
   pi.mar <- gamma.m[1,]
   tran.m <- (t(AH[1:Ti-1,])%*%(DM[2:Ti,]*BH[2:Ti,]))*tran.m #maybe a parenthesis is redundant.
-  tran.m <- t(scale(t(tran.m),center = F, scale = colSums(t(tran.m))))
+  #tran.m <- t(scale(t(tran.m),center = F, scale = colSums(t(tran.m))))
+  tran.m <- t(apply(tran.m, 1, function(x) x/sum(x)))
   oldLL <- LL
 }
 

@@ -34,7 +34,7 @@ tran.m
 #Its 2nd Results
 ```{r}
 library(HiddenMarkov)
-esult2 = forwardback(obs.vec, tran.m, pi.mar, 'norm', list(mean = mean.vec, sd = sd.vec), fortran = F)
+result2 = forwardback(obs.vec, tran.m, pi.mar, 'norm', list(mean = mean.vec, sd = sd.vec), fortran = F)
 head(result2$logalpha)
 head(result2$logbeta)
 head(result2$LL)
@@ -50,7 +50,7 @@ log.lik.iter <- c(-Inf)
 mean.vec <- c(2,3,9,10)
 sd.vec <- c(1.5,2,3,4)
 tran.m <- matrix(as.double(rep(1/N, N*N)), ncol = N, byrow = T)
-Baum.Welch(obs.vec, tran.m, pi.mar, 'norm', list(mean = mean.vec, sd = sd.vec))
+BM <- Baum.Welch(obs.vec, tran.m, pi.mar, 'norm', list(mean = mean.vec, sd = sd.vec))
 ```
 
 ```{r}
@@ -61,7 +61,7 @@ plot(BM$likelihood)
 ```{r}
 BM$Pi
 BM$pm
-Viterbihmm(obs.vec, BM$Pi, BM$delta, 'norm', BM$pm)
+
 ```
 
 ```{r}
