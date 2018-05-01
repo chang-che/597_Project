@@ -13,7 +13,7 @@ trace('Baum.Welch', edit = T)
 ```
 
 Automatically duplicate a vector mulitple times and form a matrix of them
-This is duplicate the vector into the rows of the matrix
+This is duplicate the vector into the rows of the matrix.
 You can also duplicate the vector into the columns of the matrix, just to change the byrow = F and specify the number of duplicates which is ncol and don't forget to specify the other dimension of the matrix.
 ```{r}
 x <- c(1,2,3,4,5)

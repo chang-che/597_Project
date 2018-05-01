@@ -67,3 +67,96 @@ BM$pm
 ```{r}
 Viterbihmm(obs.vec, tran.m, pi.mar, 'norm', list(mean = mean.vec, sd = sd.vec))
 ```
+
+
+
+```{r}
+hmm_BIC(obs.vec, initials = 20,maxiter =  100, epsilon = 10^(-3))
+
+```
+```{r}
+i = 4
+iter = 10
+epsilon = 10^-6
+maxiter = 100
+n<-length(obs.vec)
+  BIC<-matrix(NA,nrow=5,ncol=iter)
+  sm <- mean(obs.vec)
+  sv <- var(obs.vec)
+  k<- i*(i-1) + i*2 + i-1 #df of transition matrix + mean&sd + pi
+    for(j in 1:iter){
+      ##simulate the transtion matix
+      tran.m1<-runif(i*i,0,1)
+      tran.m2<-matrix(tran.m1,nrow=i,ncol=i)
+      x<-ginv(diag(rowSums(tran.m2)))
+      tran.m<-t(t(tran.m2)%*%x)
+      ##simulate the marginal distribution at time 1
+      a <- runif(i,min = 0,max = 1)
+      pi.mar <- a/sum(a) 
+      ##simulate the mean and standard deviation
+      mean.vec<-rep(NA,i)
+      sd.vec <- rep(NA,i)
+      for(m in 1:i){
+          sd.vec[m]<-sqrt(rinvgamma(1,shape = (n-1)/2, rate = (n-1)*sv/2))
+          mean.vec[m]<-rnorm(1,sm,sd.vec[m]/n)
+      }
+      cat(sd.vec, '\n')
+      cat(mean.vec,'\n')
+      cat(tran.m,'\n')
+      #cat(epsilon, '\n')
+      BM<-BaumWelch_hmm_2(obs.vec, pi.mar, tran.m, mean.vec, sd.vec, maxiter, epsilon)
+      L <- BM$LL
+      len <- length(BM$log.lik.iter)
+      cat(L,'\n')
+      cat(BM$log.lik.iter,'\n')
+    }
+  
+```
+```{r}
+i = 2
+iter = 100
+epsilon = 10^-6
+maxiter = 500
+n<-length(obs.vec)
+  BIC<-matrix(NA,nrow=5,ncol=iter)
+  sm <- mean(obs.vec)
+  sv <- var(obs.vec)
+  k<- i*(i-1) + i*2 + i-1 #df of transition matrix + mean&sd + pi
+    for(j in 1:iter){
+      ##simulate the transtion matix
+      tran.m1<-runif(i*i,0,1)
+      tran.m2<-matrix(tran.m1,nrow=i,ncol=i)
+      x<-ginv(diag(rowSums(tran.m2)))
+      tran.m<-t(t(tran.m2)%*%x)
+      ##simulate the marginal distribution at time 1
+      a <- runif(i,min = 0,max = 1)
+      pi.mar <- a/sum(a) 
+      ##simulate the mean and standard deviation
+      mean.vec<-rep(NA,i)
+      sd.vec <- rep(NA,i)
+      for(m in 1:i){
+          sd.vec[m]<-sqrt(rinvgamma(1,shape = (n-1)/2, rate = (n-1)*sv/2))
+          mean.vec[m]<-rnorm(1,sm,sd.vec[m]/n)
+      }
+      #cat(sd.vec, '\n')
+      #cat(mean.vec,'\n')
+      #cat(tran.m,'\n')
+      #cat(epsilon, '\n')
+      BM<-BaumWelch_hmm(obs.vec, pi.mar, tran.m, mean.vec, sd.vec, maxiter, epsilon, silence = T)
+      L <- BM$LL
+      len <- length(BM$iter_LL)
+      cat(L,'\n')
+      cat(len,'\n')
+    }
+```
+```{r}
+BaumWelch_hmm_2(obs.vec, pi.mar, tran.m, mean.vec, sd.vec, maxiter, epsilon)
+```
+
+
+Test on the BM function on
+```{r}
+
+
+```
+

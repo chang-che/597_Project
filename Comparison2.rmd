@@ -6,7 +6,7 @@ Check number of the output states matched using a not fully connected model.
 ```{r}
 set.seed(1234)
 n_states = 5
-n_time = 200
+n_time = 2000
 
 
 #tran.m.true <- matrix(unlist(x1), ncol = n_states, byrow = T)
@@ -18,11 +18,42 @@ tran.m.true <- matrix(c(1/2, 1/2, 0, 0, 0,
                         0, 0, 0, 1/2, 1/2), byrow=TRUE, nrow=5)
 listofnormals = list()
 listofnormals[[1]] = list(1, 'mean' = 2, 'sd' = 1 )
+listofnormals[[2]] = list(1, 'mean' = 4, 'sd' = 1 )
+listofnormals[[3]] = list(1, 'mean' = 8, 'sd' = 1 )
+listofnormals[[4]] = list(1, 'mean' = 14, 'sd' = 1 )
+listofnormals[[5]] = list(1, 'mean' = 10, 'sd' = 1 )
+ini.vec = c(1, 0, 0, 0,0)
+obs.vec = rep(NA, n_time)
+obs.states = rep(NA, n_time)
+
+for (i in 1:n_time) {
+  x <- sample(1:n_states, 1, prob = ini.vec)
+  obs.states[i] <- x
+  obs.vec[i] = do.call(rnorm, listofnormals[[x]])
+  ini.vec <- ini.vec %*% tran.m.true
+}
+
+obs.states
+tran.m.true
+```
+
+```{r}
+set.seed(1234)
+n_states = 4
+n_time = 2000
+
+
+#tran.m.true <- matrix(unlist(x1), ncol = n_states, byrow = T)
+#apply(tran.m, 1, sum)
+tran.m.true <- matrix(runif(n_states*n_states), byrow=TRUE, nrow=n_states)
+tran.m.true <- apply(tran.m.true, MARGIN = 1, function(x) x/sum(x))
+listofnormals = list()
+listofnormals[[1]] = list(1, 'mean' = 2, 'sd' = 1 )
 listofnormals[[2]] = list(1, 'mean' = 4, 'sd' = 3 )
 listofnormals[[3]] = list(1, 'mean' = 8, 'sd' = 3 )
 listofnormals[[4]] = list(1, 'mean' = 14, 'sd' = 3 )
-listofnormals[[5]] = list(1, 'mean' = 10, 'sd' = 4 )
-ini.vec = c(1, 0, 0, 0,0)
+#listofnormals[[5]] = list(1, 'mean' = 10, 'sd' = 4 )
+ini.vec = c(1, 0, 0, 0)
 obs.vec = rep(NA, n_time)
 obs.states = rep(NA, n_time)
 
@@ -52,5 +83,35 @@ system.time(BM1 <- BaumWelch_hmm(obs.vec, pi.mar, tran.m, mean.vec, sd.vec, maxi
 
 ```{r}
 plot(BM1$iter_LL)
+```
+
+```{r}
+i = 4
+iter = 1
+n<-length(obs.vec)
+  BIC<-matrix(NA,nrow=5,ncol=iter)
+  sm <- mean(obs.vec)
+  sv <- var(obs.vec)
+  k<- i*(i-1) + i*2 + i-1 #df of transition matrix + mean&sd + pi
+    for(j in 1:iter){
+      ##simulate the transtion matix
+      tran.m1<-runif(i*i,0,1)
+      tran.m2<-matrix(tran.m1,nrow=i,ncol=i)
+      x<-ginv(diag(rowSums(tran.m2)))
+      tran.m<-t(t(tran.m2)%*%x)
+      ##simulate the marginal distribution at time 1
+      a <- runif(i,min = 0,max = 1)
+      pi.mar <- a/sum(a) 
+      ##simulate the mean and standard deviation
+      mean.vec<-rep(NA,i)
+      sd.vec <- rep(NA,i)
+      for(m in 1:i){
+          sd.vec[m]<-sqrt(rinvgamma(1,shape = (n-1)/2, rate = (n-1)*sv/2))
+          mean.vec[m]<-rnorm(1,sm,sd.vec[m]/n)
+      }
+      cat(sd.vec, '\n')
+      cat(mean.vec,'\n')
+      L<-Baum.Welch(obs.vec, tran.m, pi.mar, 'norm', list(mean = mean.vec, sd = sd.vec), maxiter)$LL
+    }
 ```
 
